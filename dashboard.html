@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>UFlix Movie Dashboard</title>
+  <style>
+    body { font-family: Arial; margin: 2em; background: #111; color: #eee; }
+    h1 { color: #56ccf2; }
+    input, select, button {
+      padding: 6px;
+      margin: 5px;
+      background: #222;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 4px;
+    }
+    button:hover { cursor: pointer; background: #333; }
+    .movie {
+      background: #222;
+      padding: 10px;
+      margin: 10px 0;
+      border-left: 4px solid #56ccf2;
+    }
+    .meta { font-size: 0.9em; color: #aaa; }
+    .tag {
+      background: #333;
+      color: #ccc;
+      padding: 2px 6px;
+      margin-right: 4px;
+      display: inline-block;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎬 UFlix Movie Browser</h1>
+
+  <input id="search" type="text" placeholder="Search title..." />
+  <select id="genreFilter"><option value="">All Genres</option></select>
+  <select id="yearFilter"><option value="">All Years</option></select>
+  <button onclick="loadMovies()">🔍 Filter</button>
+
+  <div id="results"></div>
+
+ <script>
+  const API = "http://localhost:5000";
+
+  async function loadGenres() {
+    try {
+      const genres = await (await fetch(`${API}/genres`)).json();
+      const genreSelect = document.getElementById("genreFilter");
+      genres.forEach(g => {
+        const opt = document.createElement("option");
+        opt.value = g; opt.text = g;
+        genreSelect.appendChild(opt);
+      });
+    } catch (error) {
+      console.error("❌ Failed to load genres:", error);
+    }
+  }
+
+  async function loadYears() {
+    try {
+      const years = await (await fetch(`${API}/years`)).json();
+      const yearSelect = document.getElementById("yearFilter");
+      years.forEach(y => {
+        const opt = document.createElement("option");
+        opt.value = y; opt.text = y;
+        yearSelect.appendChild(opt);
+      });
+    } catch (error) {
+      console.error("❌ Failed to load years:", error);
+    }
+  }
+
+  async function loadMovies() {
+    const query = document.getElementById("search").value.trim();
+    const genre = document.getElementById("genreFilter").value;
+    const year = document.getElementById("yearFilter").value;
+
+    let url = query
+      ? `${API}/search?q=${encodeURIComponent(query)}`
+      : `${API}/filter?genre=${encodeURIComponent(genre)}&year=${encodeURIComponent(year)}`;
+
+    const results = document.getElementById("results");
+    results.innerHTML = "<p>⏳ Loading...</p>";
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+      const movies = await res.json();
+
+      results.innerHTML = "";
+      if (!movies.length) {
+        results.innerHTML = "<p>No results found.</p>";
+        return;
+      }
+
+      movies.forEach(m => {
+        const div = document.createElement("div");
+        const title = m.title || "Untitled";
+        const url = m.url || "#";
+        const year = m.year ?? "?";
+        const rating = m.rating || "NR";
+        const genres = Array.isArray(m.genres) ? m.genres : [];
+
+        div.className = "movie";
+        div.innerHTML = `
+          <strong>${title}</strong>
+          <div class="meta">${year} &bullet; ${rating}</div>
+          <div>${genres.map(g => `<span class="tag">${g}</span>`).join("")}</div>
+          <div><a href="${url}" target="_blank" style="color:#56ccf2">View Source</a></div>
+        `;
+        results.appendChild(div);
+      });
+
+    } catch (error) {
+      console.error("❌ Failed to fetch movies:", error);
+      results.innerHTML = `
+        <p style="color:red;">
+          ❌ Could not connect to API at <code>${API}</code><br/>
+          Make sure <strong>api.py</strong> is running.
+        </p>`;
+    }
+  }
+
+  loadGenres();
+  loadYears();
+  loadMovies();
+</script>
